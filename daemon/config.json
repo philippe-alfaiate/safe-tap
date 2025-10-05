@@ -1,0 +1,11 @@
+{
+    "port": "9809",
+    "time_tolerance_second": 5,
+    "profiles": [
+        {
+            "name": "unlock",
+            "command_line": "/bin/loginctl unlock-session",
+            "user": "philippe"
+        }
+    ]
+}
