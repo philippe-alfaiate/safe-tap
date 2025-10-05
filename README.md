@@ -30,11 +30,55 @@
 
 ## 🚀 Getting Started
 
-### 1️⃣ Install the Linux Daemon
-Clone the repo and build the daemon:
+### Download project 
+```bash
+git clone https://github.com/philippe-alfaiate/safetap.git
+```
+
+
+### Use the Linux Daemon
+run the daemon:
 
 ```bash
-git clone https://github.com/your-username/safetap.git
 cd safetap/linux-daemon
-//TODO
+go run main.go db.go
 ```
+build and run the daemon:
+
+```bash
+cd safetap/linux-daemon
+go build -o safetapd main.go db.go && ./safetapd
+```
+### Use the linux script as device
+
+Genreate device and register it:
+```bash
+cd safetap/tools/scriptGeneration
+./genFakeDevice.sh Device1 unlock
+```
+
+Send verification request to exec unlock script/profil:
+```bash
+cd safetap/tools/scriptGeneration
+./sendVerification.sh Device1 unlock
+```
+
+## Todo
+- [x] (Daemon) PoC (Proof of Concept) backend
+- [x] (Client) Script to test backend
+- [ ] (Client/Mobile) PoC mobile client only key/signature **[work in progress]**
+- [ ] (Client/mobile) Add fingerprint/Face ID to mobile part
+- [ ] (Daemon) Add endpoint for profile selection
+- [ ] (Client/mobile) Add registration process and profile selection
+- [ ] (Daemon) Add endpoint for device and profil modification
+- [ ] (Client/mobile) Add device and profil modification
+- [ ] (All) Refactor naming Device/Profile/Endpoint/Struct/Payload/...
+- [ ] (Daemon) Use proper DB sqlite or else.
+- [ ] [NicetoHave] (Client/mobile) Android App
+- [ ] [NicetoHave] (Client/mobile) iOS App (almost never)
+
+## AI - Usage/Assistance
+
+- daemon - github copilot
+- pwa - github copilot
+- Readme - chatgpt
