@@ -1,0 +1,168 @@
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Auth</title>
+    </head>
+    <body>
+        <div class="no_key">
+            <p>Click to gen key</p>
+            <button onclick="gen()">Generate</button>
+        </div>
+        <div class="key">
+            <p>Click to unlock</p>
+            <button onclick="reset()">Reset</button>
+            <button onclick="register()">Register</button>
+            <button onclick="verify()">Verify</button>
+        </div>
+    </body>
+
+    <script>
+
+        function reset() {
+            console.log("Resetting...");
+            localStorage.removeItem('publicKey');
+            localStorage.removeItem('privateKey');
+
+            document.querySelector('.no_key').style.display = 'block';
+            document.querySelector('.key').style.display = 'none';
+
+            console.log("Keys removed from local storage.");
+        }
+
+        // Function to convert SPKI to PEM format
+        function spkiToPem(spki) {
+            const b64 = btoa(String.fromCharCode(...new Uint8Array(spki)));
+            return `-----BEGIN PUBLIC KEY-----\n${b64.match(/.{1,64}/g).join('\n')}\n-----END PUBLIC KEY-----`;
+        }
+
+        // Function to convert PKCS8 to PEM format
+        function pkcs8ToPem(pkcs8) {
+            const b64 = btoa(String.fromCharCode(...new Uint8Array(pkcs8)));
+            return `-----BEGIN PRIVATE KEY-----\n${b64.match(/.{1,64}/g).join('\n')}\n-----END PRIVATE KEY-----`;
+        }
+
+        async function gen() {
+            console.log("Generating...");
+            const keyPair = await window.crypto.subtle.generateKey(
+                {
+                    name: "ECDSA",
+                    namedCurve: "P-256", // You can also use P-384 or P-521
+                },
+                true,
+                ["sign", "verify"]
+            );
+
+            console.log("Generated key pair:", keyPair);
+
+            // Export the public key to a SPKI (PEM-compatible) format
+            const spki = await window.crypto.subtle.exportKey("spki", keyPair.publicKey);
+            const publicPem = spkiToPem(spki);
+            console.log("Public Key (PEM):\n", publicPem);
+
+            // Export the private key to a PKCS8 (PEM-compatible) format
+            const pkcs8 = await window.crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
+            const privatePem = pkcs8ToPem(pkcs8);
+
+            console.log("Private Key (PEM):\n", privatePem);
+
+            // Store keys in local storage
+            localStorage.setItem('publicKey', publicPem);
+            localStorage.setItem('privateKey', privatePem);
+
+            console.log("Keys generated and stored in local storage.");
+            console.log(keyPair);
+            console.log(localStorage.getItem('publicKey'));
+
+            document.querySelector('.no_key').style.display = 'none';
+            document.querySelector('.key').style.display = 'block';
+        }
+
+
+        async function register(){
+            console.log("Registering...");
+            
+            const deviceName = "device1";
+            const profileName = "unlock";
+            const publicKey = localStorage.getItem('publicKey');
+
+            const response = await fetch('https://192.168.1.191:9809/api/v0/device/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*',
+
+
+                },
+                body: JSON.stringify({
+                    name: deviceName,
+                    public_key: publicKey,
+                    profiles: [profileName]
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log("Device registered successfully:", data);
+            } else {
+                console.error("Failed to register device:", response.statusText);
+            }
+        }
+
+        
+        async function verify() {
+            console.log("Verifying...");
+            const publicKeyPem = localStorage.getItem('publicKey');
+            const payload = {
+                device: "device1", // Replace with actual device name
+                profile: "unlock", // Replace with actual profile name
+                date: new Date().toISOString(),
+                public_key: publicKeyPem
+            };
+
+            const encoder = new TextEncoder();
+            const data = encoder.encode(JSON.stringify(payload));
+
+            // Sign the payload
+            const privateKeyPem = localStorage.getItem('privateKey');
+            const privateKey = await window.crypto.subtle.importKey(
+                "pkcs8",
+                new Uint8Array(atob(privateKeyPem.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n/g, '')).split('').map(c => c.charCodeAt(0))),
+                { name: "ECDSA", namedCurve: "P-256" },
+                false,
+                ["sign"]
+            );
+
+            const signature = await window.crypto.subtle.sign("ECDSA", privateKey, data);
+
+            // Convert signature to base64
+            const signatureBase64 = btoa(String.fromCharCode(...new Uint8Array(signature)));
+
+            // Send the request
+            const response = await fetch('https://localhost:9809/api/v0/verify', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-sign': signatureBase64
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+            console.log("Verification response:", result);
+            
+        }
+        
+        window.onload = () => {
+            console.log("Page loaded");
+            console.log(localStorage.getItem('publicKey'));
+            if (localStorage.getItem('publicKey') && localStorage.getItem('privateKey')) {
+                document.querySelector('.no_key').style.display = 'none';
+                document.querySelector('.key').style.display = 'block';
+            } else {
+                document.querySelector('.no_key').style.display = 'block';
+                document.querySelector('.key').style.display = 'none';
+            }
+        }
+    </script>
+</html>
